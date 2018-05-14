@@ -3,9 +3,9 @@
 module Language.Arith.Eval
   ( 
   -- * Run a file, string or expr 
-    execFile
-  , execString
-  , execExpr
+    evalFile
+  , evalString
+  , evalExpr
 
   -- * Convert string to AST
   , parse
@@ -19,28 +19,28 @@ import Language.Arith.Lexer
 import Language.Arith.Parser
 
 --------------------------------------------------------------------------------
-execFile :: FilePath -> IO () 
+evalFile :: FilePath -> IO () 
 --------------------------------------------------------------------------------
-execFile f = runFile f `catch` exitError
+evalFile f = runFile f `catch` exitError
 
 runFile :: FilePath -> IO ()
 runFile f = do 
   str  <- readFile f 
-  let n = execString str
+  let n = evalString [] str
   putStrLn ("Result = " ++ show n) 
 
 exitError :: Error -> IO () 
 exitError (Error msg) = putStrLn ("Error: " ++ msg) 
 
 --------------------------------------------------------------------------------
-execString :: String -> Value 
+evalString :: Env -> String -> Value 
 --------------------------------------------------------------------------------
-execString s = execExpr (parseAexpr s)
+evalString env s = evalExpr env (parseAexpr s)
 
 --------------------------------------------------------------------------------
-execExpr :: Aexpr -> Value 
+evalExpr :: Env -> Aexpr -> Value 
 --------------------------------------------------------------------------------
-execExpr e = (eval [] e) 
+evalExpr = eval 
 
 --------------------------------------------------------------------------------
 -- | `parse s` returns the Expr representation of the String s

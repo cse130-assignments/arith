@@ -31,71 +31,63 @@ convert the structure description into a parsing function!
 As a running example, let us build a small interpreter for
 a language of arithmetic expressions, described by the type
 
-~~~~~{.ocaml}
-type aexpr =
-  | Const  of int
-  | Var    of string
-  | Plus   of aexpr * aexpr
-  | Minus  of aexpr * aexpr
-  | Times  of aexpr * aexpr
-  | Divide of aexpr * aexpr
-~~~~~
+```haskell
+data Aexpr 
+  = AConst  Int
+  | AVar    String
+  | APlus   Aexpr Aexpr
+  | AMinus  Aexpr Aexpr
+  | AMul    Aexpr Aexpr
+  | ADiv    Aexpr Aexpr
+``` 
 
-shown in file (arithInterpreter.ml)[0]. This expression language
-is quite similar to what you saw for the random-art assignment,
-and we can write a simple recursive evaluator for it
+shown in file (Types.hs)[0]. This expression language
+is quite similar to what you saw for the random-art
+assignment, and we can write a simple recursive
+evaluator for it
 
-~~~~~{.ocaml}
-let foo x = match x with
-  | C1 ... -> e1
-  | C2 ... -> e2
+```haskell
+eval :: Env -> Aexpr -> Value
+eval _   (AConst i)     = i
+eval env (AVar   x)     = fromMaybe (errUnbound x) (lookup x env)
+eval env (APlus  e1 e2) = eval env e1 + eval env e2
+eval env (AMinus e1 e2) = eval env e1 - eval env e2
+eval env (AMul   e1 e2) = eval env e1 * eval env e2
+eval env (ADiv   e1 e2) = eval env e1 `div` eval env e2
+```
 
-let foo = function
-  | C1 ... -> e1
-  | C2 ... -> e2
+Here the `env` is a `[(String, Value)]` corresponding to a list
+of variables and their corresponding values. Thus, if you run the 
+above, you would see something like
 
-let rec eval env e = match e with
-  | Const i         -> i
-  | Var s           -> List.assoc s env
-  | Plus (e1, e2)   -> eval env e1 + eval env e2
-  | Minus (e1, e2)  -> eval env e1 - eval env e2
-  | Times (e1, e2)  -> eval env e1 * eval env e2
-  | Divide (e1, e2) -> eval env e1 / eval env e2
-~~~~~
+```haskell
+λ> eval [] (APlus (AConst 2) (AConst 6))
+8
 
-Here the `env` is a `(string * int) list` corresponding to a list
-of variables and their corresponding values. Thus, if you run the above,
-you would see something like
+λ> eval [("x", 16), ("y", 10)] (AMinus (AVar "x") (AVar "y"))
+6
 
-~~~~~{.ocaml}
-# eval [] (Plus (Const 2, Const 6)) ;;
-- : int = 4
+λ> eval [("x", 16), ("y", 10)] (AMinus (AVar "x") (AVar "z"))
+*** Exception: Error {errMsg = "Unbound variable z"}
+```
 
-# eval [("x",16); ("y", 10)] (Minus (Var "x", Var "y")) ;;
-- : int = 6
-
-# eval [("x",16); ("y", 10)] (Minus (Var "x", Var "z")) ;;
-Exception: NotFound.
-~~~~~~
-
-Now it is rather tedious to write ML expressions like
-`Plus (Const 2, Const 6)`, and `Minus (Var "x", Var "z")`.
+Now it is rather tedious to write expressions like
+`APlus (AConst 2) (AConst 6)`, and `AMinus (AVar "x") (AVar "z")`.
 We would like to obtain a simple parsing function
 
-~~~~~{.ocaml}
-val parseAexpr : string -> aexpr
-~~~~~
+```haskell
+parse :: String -> Aexpr
+```
 
-that converts a string to the corresponding `aexpr` if possible. For
-example, it would be sweet if we could get
+that converts a string to the corresponding `Aexpr` if possible. 
+For example, it would be sweet if we could get
 
-~~~~~{.ocaml}
-# parseAexpr "2 + 6" ;;
-- : aexpr = Plus (Const 2, Const 6)
-
-# parseAexpr "(x - y) / 2" ;;
-- : aexpr = Divide (Minus (Var "x", Var "y"), Const 2)
-~~~~~
+```haskell
+λ> parse "2 + 6"
+APlus (AConst 2) (AConst 6)
+λ> parse "(x - y) / 2"
+ADiv (AMinus (AVar "x") (AVar "y")) (AConst 2)
+```
 
 and so on. Lets see how to get there.
 
@@ -128,16 +120,14 @@ Next, we will use a special description of the structures we
 are trying to generate called a *grammar* to convert the list
 of tokens into a tree-like representation of our final structure:
 
-~~~~~{.ocaml}
-- : aexpr = Plus (Const 229, Times (Const 98, Var "x2"))
-~~~~~
+```haskell
+APlus (AConst 229) (AMul (AConst 98) (AVar "x2"))
+```
 
 The actual algorithms for converting from lists of tokens to
 trees are very subtle and sophisticated. We will omit a detailed
 description and instead just look at how the structures can
 themselves be represented by grammars.
-
-
 
 Next, we get into the details of our the above strategy, by
 describing exactly what the lexer and parser (generators) do
@@ -145,178 +135,203 @@ in terms of their input and output.
 
 # Lexers
 
-We will use the tool called `ocamllex` to automatically obtain
+We will use the tool called `alex` to automatically obtain
 a lexer from a high-level description of what the tokens are and
 what what sequences of characters should get mapped to tokens.
 
 ## Tokens
 
-The file (arithParser0.mly)[1] describes the set of tokens needed
+The file (Lexer.x)[1] describes the set of tokens needed
 to represent our simple language
 
-~~~~~{.ocaml}
-%token <int> CONST
-%token <string> VAR
-%token PLUS MINUS TIMES DIVIDE
-%token LPAREN RPAREN
-%token EOF
-~~~~~
+```haskell
+data Token
+  = NUM    AlexPosn Int
+  | ID     AlexPosn String
+  | PLUS   AlexPosn
+  | MINUS  AlexPosn
+  | MUL    AlexPosn
+  | DIV    AlexPosn
+  | LPAREN AlexPosn
+  | RPAREN AlexPosn
+  | EOF    AlexPosn
+```
 
-Note that the first two tokens, `CONST` and `VAR` also carry values with
-them, respectively `int` and `string`.
+Note that the first two tokens, `NUM` and `ID` also carry values with
+them, respectively `Int` and `String`; the others just have a field
+of type `AlexPosn` which, roughly speaking, is the source position
+at which that token was found.
 
 ## Regular Expressions
 
 Next, we must describe the sequences of characters that get aggregated
 into a particular token. This is done using (regular expressions)[7]
-defined in the file (arithLexer.mll)[2].
+defined in the file (Lexer.x)[2], which has a sequence of rules 
+of the form
 
-~~~~~{.ocaml}
-{ open ArithParser }
+```haskell
+  [\+]                          { \p _ -> PLUS   p }
+  [\-]                          { \p _ -> MINUS  p }
+  [\*]                          { \p _ -> MUL    p }
+  [\/]                          { \p _ -> DIV    p }
+  \(                            { \p _ -> LPAREN p }
+  \)                            { \p _ -> RPAREN p }
+  $alpha [$alpha $digit \_ \']* { \p s -> ID     p s }
+  $digit+                       { \p s -> NUM p (read s) }
+```
 
-rule token = parse
-  | eof                      { EOF }
-  | [' ' '\t' '\r' '\n']     { token lexbuf }
-  | ['0'-'9']+ as l          { CONST (int_of_string l) }
-  | ['a'-'z']['A'-'z']* as l { VAR l }
-  | '+'                      { PLUS }
-  | '-'                      { MINUS }
-  | '*'                      { TIMES }
-  | '/'                      { DIVIDE }
-  | '('                      { LPAREN }
-  | ')'                      { RPAREN }
-~~~~~
+Each rule is of the form: `| <regexp>	{hs-expr}`.
+Intuitively, each regular expression `regexp`
+describes a sequence of characters, and when
+that sequence is _matched_ in the input string,
+the corresponding Haskell expression is evaluated
+to obtain the _token_ that corresponds to the match.
+Let's see some examples,
 
-the first line at top simply imports the token definitions from
-`arithParser.mly`. Next, there is a sequence of rules of the form
-`| <regexp>	{ml-expr}`.
+```haskell
+  [\+]                          { \p _ -> PLUS   p }
+  [\-]                          { \p _ -> MINUS  p }
+  [\*]                          { \p _ -> MUL    p }
+  [\/]                          { \p _ -> DIV    p }
+  \(                            { \p _ -> LPAREN p }
+  \)                            { \p _ -> RPAREN p }
+```
 
-Intuitively, each regular expression describes a sequence of characters,
-and when that sequence is matched in the input string, the corresponding ML
-expression is evaluated to obtain the token that is to be returned on the
-match. Let's see some examples,
+- when a character `+`, `-`, `*`, `/` etc. are encountered, 
+  the lexer generates the tokens `PLUS`, `MINUS`, `MUL`, `DIV`
+  etc. respectively,
 
-~~~~~{.ocaml}
-  | eof                      { EOF }
-  | '+'                      { PLUS }
-  | '-'                      { MINUS }
-  | '*'                      { TIMES }
-  | '/'                      { DIVIDE }
-  | '('                      { LPAREN }
-  | ')'                      { RPAREN }
-~~~~~
+- `[c1 c2 ... cn]` where each `ci` is a character denotes
+  a regular expression that matches **any of** the characters
+  in the sequence. Thus, the regexp `[a-zA-Z]' indicates any
+  of the alphabets lower, or upper case and `[0-9]` denotes 
+  _any of_ the numeric digits
 
-- when the `eof` is reached (i.e. we hit the end of the string), a token
-  called `EOF`  is generated, similarly, when a character `+`, `-`, `/`
-  etc. are encountered, the lexer generates the tokens `PLUS`, `MINUS`,
-  `DIVIDE` etc. respectively,
+```haskell
+  [0-9]+                           { \p s -> NUM p (read s) }
+```
 
-~~~~~{.ocaml}
-  | [' ' '\t' '\r' '\n']     { token lexbuf }
-~~~~~
+- Thus, `[0 - 9]` denotes a regexp that matches any
+  digit-character. When you take a regexp and put a
+  `+` in front of it, i.e. `e+` corresponds to
+  **one-or-more** repetitions of `e`.
+  Thus, the regexp `[0-9]+` matches a _non-empty_ 
+  sequence of digit characters!
+  In the Haskell expression `p` is the source position, and `s` 
+  is the string corresponding to the matching characters; we return 
+  the exact `Int` by computing `read s` which converts the matched 
+  `String` into an `Int`.
 
-- `[c1 c2 ... cn]` where each `ci` is a character denotes a regular expression
-  that matches **any of** the characters in the sequence. Thus, the regexp
-  `[' ' '\n' '\t']` indicates that if  either a blank or tab or newline is
-  hit, the lexer should simply ignore it and recursively generate the token
-  corresponding to the rest of the buffer,
+```haskell
+  [a-z A-Z] [a-z A-Z 0-9 \_ \']*   { \p s -> ID     p s }
+```
 
-~~~~~{.ocaml}
-  | ['0'-'9']+ as l          { CONST (int_of_string l) }
-~~~~~
+- `e1 e2` denotes a regexp that matches any string `s`
+  that can be split into two parts `s1` and `s2`
+  (s.t. `s == s1 ++ s2`) where `s1` matches `e1` and
+  `s2` matches `e2`. That is, `e1 e2` is a **sequencing**
+  regexp that first matches `e1` and then matches `e2`.
 
-- `['0' - '9']` denotes a regexp that matches any
-  digit-character. When you take a regexp and put a `+` in front of it,
-  i.e. `e+` corresponds to **one-or-more** repetitions of `e`.
-  Thus, the regexp `['0'-'9']+` matches a non-empty sequence of digit characters!
-  Here, the variable `l` holds the exact substring that was matched, and we
-  simply write `CONST (int_of_string l)` to return the `CONST` token carrying
-  the `int` value corresponding to the matched substring.
+- `e*` corresponds to **zero-or-more repetitions** of `e`.
+  Thus, `[a-zA-Z][a-z A-Z 0-9 \_ \']*` is a regexp that
+  matches all strings that (1) begin with an alphabet,
+  and then have a (possibly empty)
+  sequence of alpha-numeric characters, or underscore or `'`.
+  As before, the entire matching string is bound to the
+  variable `s` and in this case the `ID p s` token is returned indicating that an identifier appeared in the input stream.
 
-~~~~~{.ocaml}
-  | ['a'-'z']['A'-'z' '0'-'9']*  as l { VAR l }
-~~~~~
+We can tidy up the lexer by **naming** some common regexps nicely,
+e.g. writing
 
-- `e1 e2` denotes a regexp that matches any string `s` that can be split into
-  two parts `s1` and `s2` (s.t. `s == s1 ^ s2`) where `s1` matches `e1` and
-  `s2` matches `e2`. That is, `e1 e2` is a **sequencing** regexp that first
-  matches `e1` and then matches `e2`.
+```haskell
+$digit = 0-9
+$alpha = [a-zA-Z]
+```
 
-- `e*` corresponds to **zero-or-more repetitions** of `e`. Thus,
-  `['a'-'z']['A'-'z' '0'-'9']*` is a regexp that matches all strings
-  that begin with a lower-case alphabet, and then have a (possibly empty)
-  sequence of alpha-numeric characters. As before, the entire matching
-  string is bound to the variable `l` and in this case the `VAR l` token
-  is returned indicating that an identifier appeared in the input stream.
+and then simplifying the rules to:
+
+```haskell
+  $alpha [$alpha $digit \_ \']* { \p s -> ID     p s }
+  $digit+                       { \p s -> NUM p (read s) }
+```
+
 
 ## Running the Lexer
 
-We can run the lexer directly to look at the sequences of tokens found.
-The function `Lexing.from_string` simply converts an input string into a
-buffer on which the actual lexer operates.
+We can run the lexer directly to look at the sequences
+of tokens found. The function `parseTokens` simply
+converts an input string into a buffer on which 
+the actual lexer operates.
 
-~~~~~{.ocaml}
-# ArithLexer.token (Lexing.from_string "+");;
-- : ArithParser.token = ArithParser.PLUS
+```haskell
+λ> parseTokens "23 + 4 / off -"
+Right [ NUM (AlexPn 0 1 1) 23
+      , PLUS (AlexPn 3 1 4)
+      , NUM (AlexPn 5 1 6) 4
+      , DIV (AlexPn 7 1 8)
+      , ID (AlexPn 9 1 10) "off"
+      , MINUS (AlexPn 13 1 14) 
+      ]
+```
 
-# ArithLexer.token (Lexing.from_string "294");;
-- : ArithParser.token = ArithParser.CONST 294
-~~~~~
+For each token the above shows the *position* at
+which the token was found in the input string.
 
-Next, we can write a function that recursively keeps grinding away to get
-all the possible tokens from a string (until it hits `eof`). When we call
-that function it behaves thus:
+Note that the the lexer finds *maximal* matches, that is:
 
-~~~~~{.ocaml}
-# token_list_of_string "23 + + 92 zz /" ;;
-- : ArithParser.token list =
-  [ArithParser.CONST 23; ArithParser.PLUS; ArithParser.PLUS;
-   ArithParser.CONST 92; ArithParser.VAR "zz"; ArithParser.DIVIDE]
-
-# token_list_of_string "23++92zz/" ;;
-- : ArithParser.token list =
-  [ArithParser.CONST 23; ArithParser.PLUS; ArithParser.PLUS;
-   ArithParser.CONST 92; ArithParser.VAR "zz"; ArithParser.DIVIDE]
-~~~~~
-
-Note that the above two calls produce exactly the same result, because
-the lexer finds *maximal* matches.
-
-~~~~~{.ocaml}
-# token_list_of_string "92z" ;;
-- : ArithParser.token list = [ArithParser.CONST 92; ArithParser.VAR "z"]
-~~~~~
+```haskell
+λ> parseTokens "92zoo"
+Right [NUM (AlexPn 0 1 1) 92, ID (AlexPn 2 1 3) "zoo"]
+```
 
 Here, when it hits the `z` it knows that the number pattern has ended and
 a new variable pattern has begun. Of course, if you give it something that
 doesn't match anything, you get an exception
 
 ~~~~~{.ocaml}
-# parse_string "%" ;;
-Exception: Failure "lexing: empty token".
+λ> parseTokens "%"
+Left "lexical error at 1 line, 1 column"
 ~~~~~
 
 # Parsers
 
-Next, will use the tool called `ocamlyacc` to automatically obtain
+Next, will use the tool called `happy` to automatically obtain
 a parser from a high-level description of the target structure
 called a **grammar**. (Note: grammars are very deep area of study,
 we're going to take a very superficial look here, guided by the
-pragmatics of how to convert strings to `aexpr` values.)
+pragmatics of how to convert strings to `Aexpr` values.)
 
 ## Grammars
 
 A grammar is a recursive definition of a set of trees, comprising
 
-- Non-terminals and Terminals, which describe the internal and leaf
-  nodes of the tree, respectively. Here, the leaf nodes will be tokens.
+- **Terminals** (aka _Token Names_) which describe the _leaf_ nodes
+  of the tree; here the leaf nodes will always be _tokens_ returned 
+  by the lexer, so we specify the _terminals_ as:
 
-- Rules of the form
+```haskell
+%token
+    TNUM  { NUM _ $$ }
+    ID    { ID _ $$  }
+    '+'   { PLUS _   }
+    '-'   { MINUS _  }
+    '*'   { MUL _    }
+    '/'   { DIV _    }
+    '('   { LPAREN _ }
+    ')'   { RPAREN _ }
+```
 
-~~~~~{.ocaml}
-nonterm :
-  | term-or-nonterm-1 ... term-or-non-term-n { Ocaml-Expr }
-~~~~~
+which says that `TNUM` and `ID` are the "terminals" for the `NUM` and `ID` tokens;
+and `'+'`, `'-'` etc are the tokens for the `PLUS`, `MINUS` etc. tokens.
+
+- **Non-terminals** which describe the _internal_ 
+  nodes of the tree, respectively, and are written 
+  by rules of the form:
+
+```haskell 
+NonTerm :
+  | Term-or-nonterm-1 ... Term-or-non-term-n { Hs-Expr }
+```
 
   that describe the possible configuration of
   children of each internal node, together with an Ocaml
@@ -324,127 +339,123 @@ nonterm :
   decorate the node. This value is computed from the
   values decorating the respective children.
 
-We can define the following simple grammar for arith expressions:
+For example, the following rules for non-terminals define 
+the grammar for `Arith` expressions:
 
-~~~~~{.ocaml}
-aexpr:
-  | aexpr PLUS   aexpr        { Plus ($1, $3)   }
-  | aexpr MINUS  aexpr        { Minus ($1, $3)  }
-  | aexpr TIMES  aexpr        { Times ($1, $3)  }
-  | aexpr DIVIDE aexpr        { Divide ($1, $3) }
-  | CONST                     { Const $1        }
-  | VAR                       { Var $1          }
-  | LPAREN aexpr RPAREN       { $2              }
-~~~~~
+```haskell
+Aexpr : BinExp                   { $1           }
+      | TNUM                     { AConst $1    }
+      | ID                       { AVar   $1    }
+      | '(' Aexpr ')'            { $2           }
+
+BinExp : Aexpr '*' Aexpr         { AMul   $1 $3 }
+       | Aexpr '+' Aexpr         { APlus  $1 $3 } 
+       | Aexpr '-' Aexpr         { AMinus $1 $3 }
+       | Aexpr '/' Aexpr         { ADiv   $1 $3 }
+```
 
 Note that the above grammar (almost) directly mimics the
 recursive type definition of the expressions.  In the above
-grammar, the *only* non-terminal is `aexpr` (we could call
-it whatever we like, we just picked the same name for
-convenience.)
+grammar, the _two_ non-terminals are `Aexpr` and `BinExp`
+(we could call them whatever we like, we just picked the
+same name for convenience.)
+
+The rules `AExpr` define it to be one of:
+
+- a `BinExp` (which will be expressions made out of a binary-operator), or
+- a `TNUM` i.e. a concrete number, or
+- a `ID` i.e. a variable, or
+- an expression surrounded by parentheses.
+
 The terminals are the tokens we defined earlier, and each
 rule corresponds to how you would take the sub-trees (i.e.
 sub-expressions) and stitch them together to get bigger trees.
 
-The line `%type <ArithInterpreter.aexpr> aexpr` at the top
-stipulates that each `aexpr` node will be decorated with a
-value of type `ArithInterpreter.aexpr` -- that is, by a
-structured arithmetic expression.
+The line
+
+```haskell
+%name aexpr
+```
+
+at the top tells `happy` to use the rules for
+the _non-terminal_ `AExpr` to generate a function
+`aexpr` that _parses_ a `Token` stream into an `AExpr`.
 
 Next, let us consider each of the rules in turn.
 
-~~~~~{.ocaml}
-  | CONST                     { Const $1        }
-  | VAR                       { Var $1          }
-~~~~~
+```haskell
+      | TNUM                     { AConst $1    }
+      | ID                       { AVar   $1    }
+```
 
-- The base-case rules for `CONST` and `VAR` state that those
-  (individual) tokens can be viewed as corresponding to `aexpr`
-  nodes. Consider the target expression in the curly braces.  
+- The base-case rules for `TNUM` and `ID` state that those
+  (individual) tokens can be viewed as corresponding to `Aexpr`
+  nodes. Consider the target expression in the curly braces.
   Here `$1` denotes the value decorating the 1st (and only!)
   element of the corresponding non/terminal- sequence. That is,
-  for the former (respectively latter) case `$1` the `int`
-  (respectively `string` value) associated with the token,
+  for the former (respectively latter) case `$1` the `Int`
+  (respectively `String` value) associated with the token,
   which we use to obtain the base arithmetic expressions via the
   appropriate constructors.
 
-~~~~~{.ocaml}
-  | aexpr PLUS   aexpr        { Plus ($1, $3)   }
-  | aexpr MINUS  aexpr        { Minus ($1, $3)  }
-  | aexpr TIMES  aexpr        { Times ($1, $3)  }
-  | aexpr DIVIDE aexpr        { Divide ($1, $3) }
-~~~~~
-
-- The inductive case rules, e.g. for the `PLUS` case says that
-  if there is a token-sequence that is parsed into an `aexpr`
-  node, followed by a `PLUS` token, followed by a sequence that
-  is parsed into an `aexpr` node, then the **entire** sequence
-  can be parsed into an `aexpr` node.
-  Here `$1` and `$3` refer to the first and third elements of
-  the sequence, that is, the *left* and *right* subexpressions.
-  The decorated value is simply the super-expression obtained by
-  applying the `Plus` constructor to the left and right subexpressions.
-  The same applies to
-
-~~~~~{.ocaml}
-  | LPAREN aexpr RPAREN       { $2              }
-~~~~~
+```haskell
+       | '(' Aexpr ')'            { $2           }
+```
 
 - The last rule allows us to parse parenthesized expressions;
   if there is a left-paren token followed by an expresssion
   followed by a matching right-paren token, then the whole
-  sequence is an `aexpr` node. Notice how the decorated expression is
-  simply `$2` which decorates the second element of the sequence, i.e.
-  the (sub) expression being wrapped in parentheses.
+  sequence is an `Aexpr` node. Notice how the decorated
+  expression is simply `$2` which decorates the second
+  element of the sequence, i.e. the (sub) expression being
+  wrapped in parentheses.
+
+```haskell
+BinExp : Aexpr '*' Aexpr         { AMul   $1 $3 }
+       | Aexpr '+' Aexpr         { APlus  $1 $3 } 
+       | Aexpr '-' Aexpr         { AMinus $1 $3 }
+       | Aexpr '/' Aexpr         { ADiv   $1 $3 }
+```
+
+- The recursive case rules, e.g. for the `+` case says that
+  if there is a token-sequence that is parsed into an `Aexpr`
+  node, followed by a `+` token, followed by a sequence that
+  is parsed into an `Aexpr` node, then the **entire** sequence
+  can be parsed into an `Aexpr` node.
+  Here `$1` and `$3` refer to the _first_ and _third_ elements of
+  the sequence, that is, the _left_ and _right_ subexpressions.
+  The decorated value is simply the super-expression obtained by
+  applying the `APlus` constructor to the left and right 
+  subexpressions. The same applies to
 
 ## Running the Parser
 
 Great, lets take our parser out for a spin! First, lets build the different
 elements
 
-~~~~~{.ocaml}
-$ cp arithParser0.mly arithParser.mly
+```bash 
+$ stack ghci
+```
 
-$ make clean
-rm -f *.cm[io] arithLexer.ml arithParser.ml arithParser.mli
+which puts us in a ghci shell with the parser loaded in:
 
-$ make
-ocamllex arithLexer.mll
-11 states, 332 transitions, table size 1394 bytes
-ocamlyacc arithParser.mly
-16 shift/reduce conflicts.
-ocamlc -c arithInterpreter.ml
-ocamlc -c arithParser.mli
-ocamlc -c arithLexer.ml
-ocamlc -c arithParser.ml
-ocamlc -c arith.ml
-ocamlmktop arithLexer.cmo arithParser.cmo arithInterpreter.cmo arith.cmo -o arith.top
-~~~~~
+```haskell
+λ> evalString [] "1 + 3 + 6"
+10
 
-Now, we have a specialize top-level with the relevant libraries baked in.
-So we can do:
-
-~~~~~{.ocaml}
-$ rlwrap ./arith.top
-        Objective Caml version 3.11.2
-
-# open Arith;;
-
-# eval_string [] "1 + 3 + 6" ;;
-- : int = 10
-
-# eval_string [("x", 100); ("y", 20)] "x - y" ;;
-- : int = 80
-~~~~~
+λ> evalString [("x", 100), ("y", 20)] "x - y"
+80
+```
 
 And lo! we have a simple calculator that also supports variables.
 
 ## Precedence and Associativity
 
 Ok, looks like our calculator works fine, but lets try this
+HEREHEREHERE
 
 ~~~~~{.ocaml}
-# eval_string [] "2 * 5 + 5" ;;
+# evalString [] "2 * 5 + 5" ;;
 - : int = 20
 ~~~~~
 

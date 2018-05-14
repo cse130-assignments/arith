@@ -2,6 +2,7 @@ module Language.Arith.Types where
 
 import Control.Exception
 import Data.Typeable 
+import qualified Data.Maybe as Mb 
 
 data Error = Error {errMsg :: String}
              deriving (Show, Typeable)
@@ -23,9 +24,7 @@ type Value = Int
 
 eval :: Env -> Aexpr -> Value 
 eval _   (AConst i)     = i 
-eval env (AVar   x)     = case lookup x env of 
-                             Just n  -> n 
-                             Nothing -> errUnbound x 
+eval env (AVar   x)     = Mb.fromMaybe (errUnbound x) (lookup x env)
 eval env (APlus  e1 e2) = eval env e1 + eval env e2
 eval env (AMinus e1 e2) = eval env e1 - eval env e2
 eval env (AMul   e1 e2) = eval env e1 * eval env e2

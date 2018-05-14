@@ -4,4 +4,4 @@ import System.Environment
 main :: IO ()
 main = do 
   f:_ <- getArgs
-  execFile f
+  evalFile f
