@@ -3,7 +3,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module Language.Arith.Parser (
-    parseExpr
+    parseAexpr
   , parseTokens
   ) where
 
@@ -39,27 +39,27 @@ import Control.Exception
 %left '*' '/'
 %%
 
-Aexpr : BinExp                     { $1           }
-      | TNUM                       { AConst $1    }
-      | ID                         { AVar   $1    }
-      | LPAREN Expr RPAREN         { $2           }
+Aexpr : BinExp                   { $1           }
+      | TNUM                     { AConst $1    }
+      | ID                       { AVar   $1    }
+      | '(' Aexpr ')'            { $2           }
 
-BinExp : Expr MUL Expr             { AMul   $1 $3 }
-       | Expr PLUS Expr            { APlus  $1 $3 } 
-       | Expr MINUS Expr           { AMinus $1 $3 }
-       | Expr DIV   Expr           { ADiv   $1 $3 }
+BinExp : Aexpr '*' Aexpr         { AMul   $1 $3 }
+       | Aexpr '+' Aexpr         { APlus  $1 $3 } 
+       | Aexpr '-' Aexpr         { AMinus $1 $3 }
+       | Aexpr '/' Aexpr         { ADiv   $1 $3 }
 {
 
 parseError :: [Token] -> Except String a
 parseError (l:ls) = throwError (show l)
 parseError []     = throwError "Unexpected end of Input"
 
-parseExpr :: String -> Expr
-parseExpr s = case parseExpr' s of
+parseAexpr :: String -> Aexpr
+parseAexpr s = case parseAexpr' s of
                 Left msg -> throw (Error ("parse error:" ++ msg))
                 Right e  -> e
 
-parseExpr' input = runExcept $ do
+parseAexpr' input = runExcept $ do
    tokenStream <- scanTokens input
    aexpr tokenStream
 

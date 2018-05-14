@@ -30,10 +30,9 @@ Library
 
 executable nano
   build-depends:       base,
-                       haskeline,
                        mtl,
                        transformers,
-                       hw4-nano
+                       arith 
   default-language:    Haskell2010
   main-is:             src/Main.hs
   Default-Extensions: OverloadedStrings

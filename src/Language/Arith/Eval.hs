@@ -13,8 +13,9 @@ module Language.Arith.Eval
   , tokens)
   where
 
-import Control.Exception (throw, catch)
+import Control.Exception (catch)
 import Language.Arith.Types
+import Language.Arith.Lexer 
 import Language.Arith.Parser
 
 --------------------------------------------------------------------------------
@@ -23,23 +24,23 @@ execFile :: FilePath -> IO ()
 execFile f = runFile f `catch` exitError
 
 runFile :: FilePath -> IO ()
-runfile f = do 
-  s <- readFile f 
-  n <- execString s
+runFile f = do 
+  str  <- readFile f 
+  let n = execString str
   putStrLn ("Result = " ++ show n) 
 
 exitError :: Error -> IO () 
 exitError (Error msg) = putStrLn ("Error: " ++ msg) 
 
 --------------------------------------------------------------------------------
-execString :: String -> IO () 
+execString :: String -> Value 
 --------------------------------------------------------------------------------
-execString s = execExpr (parseExpr s) `catch` exitError
+execString s = execExpr (parseAexpr s)
 
 --------------------------------------------------------------------------------
-execExpr :: Expr -> IO () 
+execExpr :: Aexpr -> Value 
 --------------------------------------------------------------------------------
-execExpr e = return (eval [] e) `catch` exitError
+execExpr e = (eval [] e) 
 
 --------------------------------------------------------------------------------
 -- | `parse s` returns the Expr representation of the String s
@@ -57,14 +58,14 @@ execExpr e = return (eval [] e) `catch` exitError
 -- AMinus (AMinus (AConst 10) (AConst 2)) (AConst 2)
 --
 -- >>> parse "2 + 10 * 3"
--- APlus (AConst 2) (ATimes (AConst 10) (AConst 3)) 
+-- APlus (AConst 2) (AMul (AConst 10) (AConst 3)) 
 
 --------------------------------------------------------------------------------
-parse :: String -> Expr
+parse :: String -> Aexpr
 --------------------------------------------------------------------------------
-parse = parseExpr
+parse = parseAexpr
 
 --------------------------------------------------------------------------------
 tokens :: String -> Either String [Token]
 --------------------------------------------------------------------------------
-tokens = parseTokens 
+tokens = parseTokens
