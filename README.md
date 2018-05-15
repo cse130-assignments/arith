@@ -433,7 +433,17 @@ BinExp : Aexpr '*' Aexpr         { AMul   $1 $3 }
 Great, lets take our parser out for a spin! First, lets build the different
 elements
 
-```bash 
+```bash
+$ cp src/Language/Arith/Parser0.y src/Language/Arith/Parser.y
+$ stack build
+...
+shift/reduce conflicts:  16
+...
+```
+
+and now we can load up the `ghci` shell with:
+
+```bash
 $ stack ghci
 ```
 
@@ -452,111 +462,106 @@ And lo! we have a simple calculator that also supports variables.
 ## Precedence and Associativity
 
 Ok, looks like our calculator works fine, but lets try this
-HEREHEREHERE
 
-~~~~~{.ocaml}
-# evalString [] "2 * 5 + 5" ;;
-- : int = 20
-~~~~~
+```haskell
+λ> evalString [] "2 * 5 + 5"
+20
+```
 
 Huh?! you would think that the above should yield `15` as `*` has higher
 precedence than `+` , and so the above expression is really `(2 * 5) + 5`.
 Indeed, if we took the trouble to put the parentheses in, the right thing
 happens
 
-~~~~~{.ocaml}
-# eval_string [] "(2 * 5) + 5" ;;
-- : int = 15
-~~~~~
+```haskell
+λ> evalString [] "(2 * 5) + 5"
+15
+```
 
 Indeed, the same issue arises with a single operator
 
-~~~~~{.ocaml}
-# eval_string [] "2 - 1 - 1" ;;
-- : int = 2
-~~~~~
+```haskell
+λ> evalString [] "2 - 1 - 1"
+2
+```
 
 What happens here is that the grammar we gave is **ambiguous**
 as there are multiple ways of parsing the string `2 * 5 + 5`, namely
 
-- `Plus (Times (Const 2, Const 5), Const 5)`, or
-- `Times (Const 2, Plus (Const 5, Const 5))`
+- `APlus (AMul (AConst 2) (AConst 5)) (AConst 5)`, or
+- `AMul  (AConst 2) (APlus (AConst 5) (AConst 5))`
 
-We want the former, but ocamlyacc gives us the latter!
+We want the former, but `happy` gives us the latter!
 Similarly, there are multiple ways of parsing `2 - 1 - 1`, namely
 
-- `Minus (Minus (Const 2, Const 1), Const 1)`, or
-- `Minus (Const 2, Minus (Const 1, Const 1))`
+- `AMinus (AMinus (AConst 2) (AConst 1)) (AConst 1)`, or
+- `AMinus (AConst 2) (AMinus (AConst 1) (AConst 1))`
 
 Again, since `-` is left-associative, we want the former, but
 we get the latter! (Incidentally, this is why we got those wierd
-grumbles about `shift/reduce conflicts` when we ran `ocamlyacc`
-above, but lets not go too deep into that...)
+grumbles about `shift/reduce conflicts` when we ran `stack build`
+above ...)
 
 There are various ways of adding precedence, one is to hack the
 grammar by adding various extra non-terminals, as done here
-(arithParser2.mly)[5]. Note how there are no conflicts if you
+(Parser2.y)[4]. Note how there are no conflicts if you
 use that grammar instead.
 
 However, since this is such a common problem, there is a much
 simpler solution, which is to add precedence and associativity
 annotations to the .mly file. In particular, let us use the
-modified grammar (arithParser1.mly)[3].
+modified grammar (Parser1.y)[3].
 
-~~~~~{.ocaml}
-$ cp arithParser1.mly arithParser.mly
-$ make
-ocamllex arithLexer.mll
-11 states, 332 transitions, table size 1394 bytes
-ocamlyacc arithParser.mly
-ocamlc -c arithInterpreter.ml
-ocamlc -c arithParser.mli
-ocamlc -c arithLexer.ml
-ocamlc -c arithParser.ml
-ocamlc -c arith.ml
-ocamlmktop arithLexer.cmo arithParser.cmo arithInterpreter.cmo arith.cmo -o arith.top
-~~~~~
+```haskell 
+$ cp src/Language/Arith/Parser1.y src/Language/Arith/Parser.y
+$ stack build
+```
 
 check it out, no conflicts this time! The only difference between this
 grammar and the previous one are the lines
 
-~~~~~{.ocaml}
-%left PLUS MINUS
-%left TIMES DIVIDE
-~~~~~
+```haskell 
+%left '+' '-'
+%left '*' '/'
+```
 
 This means that all the operators are **left-associative**  
 so `e1 - e2 - e3` is parsed as if it were `(e1 - e2) - e3`.
-As a result we get
+Now, after doing 
 
-~~~~~{.ocaml}
-# eval_string []  "2 - 1 - 1" ;;
-- : int = 0
-~~~~~
+```bash 
+$ stack ghci 
+```
+
+we get
+
+```haskell
+λ> evalString [] "2 - 1 - 1"
+0
+```
 
 Furthermore, we get that addition and subtraction have lower
 precedence than multiplication and division (the order of the
 annotations matters!)
 
-~~~~~{.ocaml}
-# eval_string []  "2 * 5 + 5" ;;
-- : int = 15
-# eval_string []  "2 + 5 * 5" ;;
-- : int = 27
-~~~~~
+```haskell
+λ> evalString [] "2 * 5 + 5"
+15
+λ> evalString [] "2 + 5 * 5"
+27
+```
 
 Hence, the multiplication operator has higher precedence than the addition,
 as we have grown to expect, and all is well in the world.
 
-
 This concludes our brief tutorial, which should suffice for your NanoML
 programming assignment. However, if you are curious, I encourage you to
-look at (this)[6] for more details.
+look at the documentation for [alex](https://www.haskell.org/alex/) and 
+[happy](https://www.haskell.org/happy/) for more details.
 
-
-[0]: http://goto.ucsd.edu/~rjhala/130/hw4/arith_notes/arithInterpreter.ml
-[1]: http://goto.ucsd.edu/~rjhala/130/hw4/arith_notes/arithParser0.mly
-[2]: http://goto.ucsd.edu/~rjhala/130/hw4/arith_notes/arithLexer.mll
-[3]: http://goto.ucsd.edu/~rjhala/130/hw4/arith_notes/arithParser1.mly
-[6]: http://plus.kaist.ac.kr/~shoh/ocaml/ocamllex-ocamlyacc/ocamlyacc-tutorial/
+[0]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Types.hs 
+[1]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Parser0.y
+[2]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Lexer.x
+[3]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Parser1.y
+[4]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Parser2.y
 [7]: http://en.wikipedia.org/wiki/Regular_expression
