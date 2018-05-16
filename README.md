@@ -554,7 +554,7 @@ annotations matters!)
 Hence, the multiplication operator has higher precedence than the addition,
 as we have grown to expect, and all is well in the world.
 
-This concludes our brief tutorial, which should suffice for your NanoML
+This concludes our brief tutorial, which should suffice for your Nano
 programming assignment. However, if you are curious, I encourage you to
 look at the documentation for [alex](https://www.haskell.org/alex/) and 
 [happy](https://www.haskell.org/happy/) for more details.
