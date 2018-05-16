@@ -288,10 +288,10 @@ Here, when it hits the `z` it knows that the number pattern has ended and
 a new variable pattern has begun. Of course, if you give it something that
 doesn't match anything, you get an exception
 
-~~~~~{.ocaml}
+```haskell
 λ> parseTokens "%"
 Left "lexical error at 1 line, 1 column"
-~~~~~
+```
 
 # Parsers
 
@@ -334,7 +334,7 @@ NonTerm :
 ```
 
   that describe the possible configuration of
-  children of each internal node, together with an Ocaml
+  children of each internal node, together with a Haskell
   expression that generates a *value* that is used to
   decorate the node. This value is computed from the
   values decorating the respective children.
@@ -559,9 +559,9 @@ programming assignment. However, if you are curious, I encourage you to
 look at the documentation for [alex](https://www.haskell.org/alex/) and 
 [happy](https://www.haskell.org/happy/) for more details.
 
-[0]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Types.hs 
-[1]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Parser0.y
-[2]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Lexer.x
-[3]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Parser1.y
-[4]: https://github.com/ucsd-cse130/arith/blob/master/src/Language/Arith/Parser2.y
+[0]: https://github.com/cse130-sp18/arith/blob/master/src/Language/Arith/Types.hs 
+[1]: https://github.com/cse130-sp18/arith/blob/master/src/Language/Arith/Parser0.y
+[2]: https://github.com/cse130-sp18/arith/blob/master/src/Language/Arith/Lexer.x
+[3]: https://github.com/cse130-sp18/arith/blob/master/src/Language/Arith/Parser1.y
+[4]: https://github.com/cse130-sp18/arith/blob/master/src/Language/Arith/Parser2.y
 [7]: http://en.wikipedia.org/wiki/Regular_expression
