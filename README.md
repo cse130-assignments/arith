@@ -41,7 +41,7 @@ data Aexpr
   | ADiv    Aexpr Aexpr
 ``` 
 
-shown in file (Types.hs)[0]. This expression language
+shown in file [Types.hs][0]. This expression language
 is quite similar to what you saw for the random-art
 assignment, and we can write a simple recursive
 evaluator for it
