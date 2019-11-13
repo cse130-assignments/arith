@@ -141,7 +141,7 @@ what what sequences of characters should get mapped to tokens.
 
 ## Tokens
 
-The file (Lexer.x)[1] describes the set of tokens needed
+The file [Lexer.x][2] describes the set of tokens needed
 to represent our simple language
 
 ```haskell
@@ -165,8 +165,8 @@ at which that token was found.
 ## Regular Expressions
 
 Next, we must describe the sequences of characters that get aggregated
-into a particular token. This is done using (regular expressions)[7]
-defined in the file (Lexer.x)[2], which has a sequence of rules 
+into a particular token. This is done using [regular expressions][7]
+defined in the file [Lexer.x][2], which has a sequence of rules 
 of the form
 
 ```haskell
@@ -504,13 +504,13 @@ above ...)
 
 There are various ways of adding precedence, one is to hack the
 grammar by adding various extra non-terminals, as done here
-(Parser2.y)[4]. Note how there are no conflicts if you
+[Parser2.y][4]. Note how there are no conflicts if you
 use that grammar instead.
 
 However, since this is such a common problem, there is a much
 simpler solution, which is to add precedence and associativity
 annotations to the .mly file. In particular, let us use the
-modified grammar (Parser1.y)[3].
+modified grammar [Parser1.y][3].
 
 ```haskell 
 $ cp src/Language/Arith/Parser1.y src/Language/Arith/Parser.y
