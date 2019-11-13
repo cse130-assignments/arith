@@ -108,11 +108,11 @@ lower-case alphabet) into say a variable name.
 Thus, as a result of the lexing phase, we can convert a list of
 individual characters
 
-![Characters](/static/img/info_parser.001a.jpg){#fig:chars width=70%}
+![Characters](/static/img/info_parser.001a.jpg)
 
 into a list of *tokens*
 
-![Tokens](/static/img/info_parser.001b.jpg){#fig:tokens width=70%}
+![Tokens](/static/img/info_parser.001b.jpg)
 
 ### Step 2 (Parsing) : From Tokens to Tree
 
