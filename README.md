@@ -203,7 +203,7 @@ Let's see some examples,
 
 - `[c1 c2 ... cn]` where each `ci` is a character denotes
   a regular expression that matches **any of** the characters
-  in the sequence. Thus, the regexp `[a-zA-Z]' indicates any
+  in the sequence. Thus, the regexp `[a-zA-Z]` indicates any
   of the alphabets lower, or upper case and `[0-9]` denotes 
   _any of_ the numeric digits
 
