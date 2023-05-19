@@ -33,8 +33,8 @@ unit sc = testGroup "Arith"
               , 1
               , "Minus: left-assoc" )
   , scoreTest ( parse
-              , "2 + 10 * 3"
-              , APlus (AConst 2) (AMul (AConst 10) (AConst 3)) 
+              , "2 * 10 + 3"
+              , APlus (AMul (AConst 2) (AConst 10)) (AConst 3) 
               , 1
               , "Mult: binds tighter than plus" )
   ] 
